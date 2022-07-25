@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const Hapi = require('@hapi/hapi');
 const songs = require('./api/songs');
+const ClientError = require('./exceptions/ClientError');
 const SongsService = require('./services/postgres/SongsService');
 const SongsValidator = require('./validator/songs');
 
@@ -16,6 +17,24 @@ const init = async () => {
         origin: ['*'],
       },
     },
+  });
+
+  server.ext('onPreResponse', (request, h) => {
+    // Mendapatkan konteks response dari request
+    const { response } = request;
+
+    if (response instanceof ClientError) {
+      // Membuat response baru dari response toolkit sesuai kebutuhan error handling
+      const newResponse = h.response({
+        status: 'fail',
+        message: response.message,
+      });
+      newResponse.code(response.statusCode);
+      return newResponse;
+    }
+
+    // Jika bukan ClientError, lanjutkan dengan response sebelumnya (tanpa terintervensi)
+    return response.continue || response;
   });
 
   await server.register({
